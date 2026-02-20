@@ -52,6 +52,12 @@ int main(int argc, char* argv[]){
         int c;
         opterr = 0;
         
+        // Lecture des options de la ligne de commande, avec getopt. Les options sont les suivantes :
+        // -s : mode d'ordonnancement (NORT, RR, FIFO, DEADLINE)
+        // -d : paramètres pour l'ordonnancement deadline (runtime,deadline,period en millisecondes, séparés par des virgules)
+        // -w : largeur de sortie
+        // -h : hauteur de sortie
+        // -r : mode de redimensionnement (0 = plus proche voisin, 1 = bilineaire)
         while((c = getopt(argc, argv, "s:d:w:h:r:")) != -1){ // On lit les options
             switch(c){
                 case 's': // Option d'ordonnancement
