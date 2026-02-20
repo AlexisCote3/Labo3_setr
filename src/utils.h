@@ -149,6 +149,8 @@ void initProfilage(InfosProfilage *dataprof, const char *chemin_enregistrement);
 
 void evenementProfilage(InfosProfilage *dataprof, unsigned int type);
 
+int safe_mul_size(size_t a, size_t b, size_t *out);
+
 
 #ifdef __cplusplus
 }

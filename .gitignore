@@ -1,0 +1,73 @@
+# -------------------------
+# CMake build directories
+# -------------------------
+build/
+build-*/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# If you use in-source builds (not recommended), uncomment:
+# CMakeFiles/
+# CMakeCache.txt
+# cmake_install.cmake
+# Makefile
+
+# -------------------------
+# CMake / Tooling artifacts
+# -------------------------
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+CPackConfig.cmake
+CPackSourceConfig.cmake
+*.cmake.user
+
+# -------------------------
+# Ninja / Make
+# -------------------------
+.ninja_deps
+.ninja_log
+.ninja*
+*.ninja
+
+# -------------------------
+# IDEs / Editors
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CLion
+cmake-build-*/
+.idea/
+
+# -------------------------
+# OS / Misc
+# -------------------------
+Thumbs.db
+
+# -------------------------
+# Language-specific (optional)
+# -------------------------
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.pdb
+*.ilk
+*.dSYM/

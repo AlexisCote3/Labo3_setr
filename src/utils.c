@@ -521,3 +521,12 @@ void evenementProfilage(InfosProfilage *dataprof, unsigned int type){
         dataprof->pos = 0;
     }
 }
+
+//assurer que la multiplication des size ne vas pas overflow size_t
+int safe_mul_size(size_t a, size_t b, size_t *out)
+{
+    if (a == 0 || b == 0) { *out = 0; return 1; }
+    if (a > SIZE_MAX / b) return 0;
+    *out = a * b;
+    return 1;
+}
