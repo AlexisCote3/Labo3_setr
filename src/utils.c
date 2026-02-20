@@ -18,6 +18,19 @@
 // Applique les paramètres d'ordonnancement au processus courant
 int appliquerOrdonnancement(const struct SchedParams* params, const char* nomProgramme) {
     // TODO : implémenter cette fonction
+    struct sched_attr attr;
+    memset(&attr, 0, sizeof(attr));
+    attr.size = sizeof(attr);
+    attr.sched_policy = params->modeOrdonnanceur;
+    attr.sched_runtime = params->runtime * 1000000; // Convertir en nanosecondes
+    attr.sched_deadline = params->deadline * 1000000;
+    attr.sched_period = params->period * 1000000;
+    if (sched_setattr(0, &attr, 0) < 0) {
+        printf("Erreur lors de l'application des paramètres d'ordonnancement pour %s \n", nomProgramme);
+        return -1;
+    }
+    return 0;
+
 }
 
 // Parse l'option -s (type d'ordonnanceur: NORT, RR, FIFO, DEADLINE)
