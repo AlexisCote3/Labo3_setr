@@ -521,3 +521,24 @@ void evenementProfilage(InfosProfilage *dataprof, unsigned int type){
         dataprof->pos = 0;
     }
 }
+
+//assurer que la multiplication des size ne vas pas overflow size_t
+int safe_mul_size(size_t a, size_t b, size_t *out)
+{
+    if (a == 0 || b == 0) { *out = 0; return 1; }
+    if (a > SIZE_MAX / b) return 0;
+    *out = a * b;
+    return 1;
+}
+
+uint64_t now_us(void) {
+
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    // (secondes -> us) + (ns -> us)
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+}
+
+size_t frame_bytes(const struct videoInfos* vi){
+    return (size_t)vi->largeur * (size_t)vi->hauteur * (size_t)vi->canaux;
+}
