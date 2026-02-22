@@ -7,6 +7,12 @@
  * Fichier implémentant les fonctions de communication inter-processus
  ******************************************************************************/
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+
 #include "commMemoirePartagee.h"
 #include "utils.h"
 
@@ -59,11 +65,11 @@ int initMemoirePartageeEcrivain(const char* identifiant, struct memPartage *zone
     zone->header = (struct memPartageHeader*)base;
     zone->data = (unsigned char*)((unsigned char*)base + sizeof(struct memPartageHeader));
 
-    pthread_mutexattr_t mattr;
-    pthread_condxattr_t cattr;
+    pthread_mutexattr_t  mattr;
+    pthread_condattr_t cattr;
 
     //init le mutex
-    if (pthread_metexattr_init(&mattr) != 0) {
+    if (pthread_mutexattr_init(&mattr) != 0) {
         munmap(base, total);
         close(fd);
         shm_unlink(identifiant);
@@ -142,6 +148,7 @@ int initMemoirePartageeLecteur(const char* identifiant, struct memPartage *zone)
     }
 
     memset(zone, 0, sizeof(*zone));
+    int fd;
 
     //boucle infinie car doit attendre que l'ecrivain init le fichier dans la memoire
     for (;;) {

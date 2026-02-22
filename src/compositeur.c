@@ -59,7 +59,7 @@
 #include "allocateurMemoire.h"
 #include "commMemoirePartagee.h"
 #include "utils.h"
-
+#include <getopt.h>
 
 // Fonction permettant de récupérer le temps courant sous forme double
 double get_time()
@@ -188,6 +188,131 @@ int main(int argc, char* argv[])
     
     // On desactive le buffering pour les printf(), pour qu'il soit possible de les voir depuis votre ordinateur
     setbuf(stdout, NULL);
+
+    //----
+    //Analyse des arguments
+    //----
+    char* flux[4] = {0,0,0,0};
+    struct SchedParams schedParams = {0};
+
+    if (argc == 2 && strcmp(argv[1], "--debug") == 0) {
+
+        flux[0] = (char*)"/flux_mem";
+        nbrActifs = 1;
+    } else {
+
+        int opt;
+        while ((opt = getopt(argc, argv, "s:d:")) != -1) {
+            switch (opt)
+            {
+            case 's':
+                parseSchedOption(optarg, &schedParams);
+                break;
+
+            case 'd':
+                parseDeadlineParams(optarg, &schedParams);
+                break;
+            
+            default:
+                break;
+            }
+        }
+
+        nbrActifs = argc - optind;
+        if (nbrActifs < 1 || nbrActifs > 4) {
+            fprintf(stderr, "Usage: %s [options] flux1 [flux2] [flux3] [flux4]\n", argv[0]);
+            return -1;
+        }
+
+        for (int i = 0; i < nbrActifs; i++) flux[i] = argv[optind + i];
+
+    }
+
+    if (appliquerOrdonnancement(&schedParams, "compositeur") != 0) {
+        fprintf(stderr, "appliquerOrdonnancement a echoue: %s\n", strerror(errno));
+        return -1;
+    }
+
+    //zone entree
+    struct memPartage zone_in[4];
+    struct videoInfos infos[4];
+    size_t bytes[4] = {0};
+    unsigned char* lastFrame[4] = {0};
+    int pending[4] = {0}; //1 si occuper
+
+    //statistique
+    uint64_t periodUs[4] = {0};
+    uint64_t nextAllowedUs[4] = {0};
+    uint64_t lastFrameUs[4] = {0};
+    unsigned int count_frames[4] = {0};
+    double maxDeltaMs_frames[4] = {0.0};
+
+    for (int i = 0; i < nbrActifs; i++) {
+
+        if (initMemoirePartageeLecteur(flux[i], &zone_in[i]) != 0) {
+            perror("initMemoirePartageeLecteur");
+            return -1;
+        }
+
+        infos[i] = zone_in[i].header->infos;
+
+        if (infos[i].largeur != 427 || infos[i].hauteur != 240) {
+            fprintf(stderr, "Flux %d invalide: %ux%u (attendu 427x240)\n", i+1, infos[i].largeur, infos[i].hauteur);
+            return -1;
+        }
+        if (!(infos[i].canaux == 1 || infos[i].canaux == 3)) {
+            fprintf(stderr, "Flux %d invalide: canaux=%u (attendu 1 ou 3)\n", i+1, infos[i].canaux);
+            return -1;
+        }
+
+        bytes[i] = frame_bytes(&infos[i]);
+
+        periodUs[i] = (infos[i].fps == 0) ? 0 : (1000000ULL / (uint64_t)infos[i].fps);
+        nextAllowedUs[i] = 0;
+    }
+
+    //memory pool pour ecrire image
+    size_t pool_size = 2*1024*1024;
+    for (int i = 0; i < nbrActifs; i++) pool_size += 6 * bytes[i];
+
+    if (prepareMemoire(pool_size) != 0) {
+        fprintf(stderr, "prepareMemoire a echoue\n");
+        return -1;
+    }
+
+    struct rlimit lim;
+    lim.rlim_cur = lim.rlim_max = RLIM_INFINITY;
+    if (setrlimit(RLIMIT_MEMLOCK, &lim) != 0) {
+        perror("setrlimit(RLIMIT_MEMLOCK)");
+    }
+    if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {
+        perror("mlockall");
+    }
+
+    for (int i = 0; i < nbrActifs; i++) {
+        lastFrame[i] = (unsigned char*)tempsreel_malloc(bytes[i]);
+        if (!lastFrame[i]) {
+            fprintf(stderr, "tempsreel_malloc failed\n");
+            return -1;
+        }
+        pending[i] = 0;
+    }
+
+    // stats.txt
+    FILE* fstats = fopen("stats.txt", "w");
+    if (!fstats) { 
+        perror("fopen stats.txt"); 
+        return -1; 
+    }
+
+    setbuf(fstats, NULL);
+
+    uint64_t startUs = now_us();
+    uint64_t lastStatsUs = startUs;
+
+
+
+    
     
     // Initialise le profilage
     char signatureProfilage[128] = {0};
@@ -261,6 +386,12 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+    // Force l'initialisation de imageGlobale (calloc dans ecrireImage)
+    static unsigned char noir[427 * 240 * 3];
+    memset(noir, 0, sizeof(noir));
+    ecrireImage(0, nbrActifs, fbfd, fbp, vinfo.xres, vinfo.yres, &vinfo, finfo.line_length,
+            noir, 240, 427, 3);
+
 
     while(1){
             // Boucle principale du programme
@@ -279,7 +410,33 @@ int main(int argc, char* argv[])
             // 427x240 (voir le commentaire en haut du document).
         
             // Exemple d'appel à ecrireImage (n'oubliez pas de remplacer les arguments commençant par A_REMPLIR!)
-            ecrireImage(A_REMPLIR_POSITION_ACTUELLE, 
+            uint64_t now = now_us();
+            int did_task = 0;
+
+            evenementProfilage(&profInfos, ETAT_ATTENTE_MUTEXLECTURE);
+
+            //Lire les flux sans bloquer
+            for (int i = 0; i < nbrActifs; i++) {
+
+                //mutex lock si donnee sont prete
+                int ready = attenteLecteurAsync(&zone_in[i]);
+                if (ready == 1) {
+                    memcpy(lastFrame[i], zone_in[i].data, bytes[i]);
+                    pending[i] = 1;
+                    //relacher mutex terminer de lire
+                    signalLecteur(&zone_in[i]);
+
+                }
+            }
+
+            
+            //afficher et respecter le fps
+            for (int i = 0; i < nbrActifs; i++) {
+
+                if (!pending[i]) continue;
+                if (periodUs[i] == 0 || now >= nextAllowedUs[i]) {
+                    evenementProfilage(&profInfos, ETAT_TRAITEMENT);
+                    ecrireImage(i, 
                         nbrActifs, 
                         fbfd, 
                         fbp, 
@@ -287,10 +444,50 @@ int main(int argc, char* argv[])
                         vinfo.yres, 
                         &vinfo, 
                         finfo.line_length,
-                        A_REMPLIR_DONNEES_DE_LA_TRAME,
-                        A_REMPLIR_HAUTEUR_DE_LA_TRAME,
-                        A_REMPLIR_LARGEUR_DE_LA_TRAME,
-                        A_REMPLIR_NOMBRECANAUX_DANS_LA_TRAME);
+                        lastFrame[i],
+                        infos[i].hauteur,
+                        infos[i].largeur,
+                        infos[i].canaux);
+
+                    did_task = 1;
+                    pending[i] = 0;
+
+                    if (lastFrameUs[i] != 0) {
+                        double display_ms = (double)(now - lastFrameUs[i]) / 1000.0;
+                        if (display_ms > maxDeltaMs_frames[i]) maxDeltaMs_frames[i] = display_ms;
+                    }
+
+                    lastFrameUs[i] = now;
+                    count_frames[i]++;
+
+                    if (periodUs[i] != 0) nextAllowedUs[i] = now + periodUs[i];
+                }
+            }
+
+            // 3) Écriture stats toutes ~5 secondes
+            if (now - lastStatsUs >= 5000000ULL) {
+                double elapsed = (double)(now - startUs) / 1000000.0;
+                double winSec  = (double)(now - lastStatsUs) / 1000000.0;
+                if (winSec <= 0.0) winSec = 5.0;
+
+                fprintf(fstats, "[%.1f] ", elapsed);
+
+                for (int i = 0; i < nbrActifs; i++) {
+                    double moy = (double)count_frames[i] / winSec;
+                    fprintf(fstats, "Entree %d: moy=%.1f fps, max=%.1f ms | ",
+                            i+1, moy, maxDeltaMs_frames[i]);
+                    count_frames[i] = 0;
+                    maxDeltaMs_frames[i] = 0.0;
+                }
+                fprintf(fstats, "\n");
+                lastStatsUs = now;
+            }
+
+            //eviter bruler cpu
+            if (!did_task) {
+                evenementProfilage(&profInfos, ETAT_ENPAUSE);
+                usleep(1000); // 1 ms
+            }
     }
 
 

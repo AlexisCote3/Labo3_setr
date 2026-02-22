@@ -13,6 +13,19 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <errno.h>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <sys/types.h>
+
 #include "allocateurMemoire.h"
 #include "commMemoirePartagee.h"
 #include "utils.h"
@@ -55,18 +68,10 @@ static int read_u32(const uint8_t* buffer, size_t buffer_size, size_t offset, ui
 
     if (offset + 4 > buffer_size) return -1;
     uint32_t value;
-    memcpy(&v, buffer + offset, 4);
+    memcpy(&value, buffer + offset, 4);
     *out = value;
     return 0;
 
-}
-
-static uint64_t now_us(void) {
-
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    // (secondes -> us) + (ns -> us)
-    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
 }
 
 
@@ -149,30 +154,48 @@ int main(int argc, char* argv[]){
         }
 
         size_t file_size = (size_t)st.st_size;
+        if (file_size < ULV_HEADER_BYTES) {
+            fprintf(stderr, "Fichier ULV trop petit\n");
+            close(fd);
+            return 1;
+        }
 
-        uint8_t* file = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, 0);
-        close(fd);
-        if (file == MAP_FAILED) {
+        //Lire le header pour verifier SETR
+        uint8_t ulv_hdr[ULV_HEADER_BYTES];
+        ssize_t r = pread(fd, ulv_hdr, ULV_HEADER_BYTES, 0);
+        if (r != ULV_HEADER_BYTES) {
+            perror("pread");
+            close(fd);
+            return 1;
+        }
 
-            perror("mmap");
+        if (memcmp(ulv_hdr, header, 4) != 0) {
+            fprintf(stderr, "ULV invalide: header != SETR\n");
+            close(fd);
             return 1;
         }
 
         uint32_t width=0,height=0,channels=0,fps=0;
-        if (read_u32(file, file_size, 4, &width) != 0 ||
-            read_u32(file, file_size, 8, &height) != 0 ||
-            read_u32(file, file_size, 12, &channels) != 0 ||
-            read_u32(file, file_size, 16, &fps) != 0
+        if (read_u32(ulv_hdr, ULV_HEADER_BYTES, 4, &width) != 0 ||
+            read_u32(ulv_hdr, ULV_HEADER_BYTES, 8, &height) != 0 ||
+            read_u32(ulv_hdr, ULV_HEADER_BYTES, 12, &channels) != 0 ||
+            read_u32(ulv_hdr, ULV_HEADER_BYTES, 16, &fps) != 0
         ) {
             fprintf(stderr, "ULV invalide (infos)\n");
-            munmap(file, file_size);
+            close(fd);
+            return 1;
+        }
+
+        if (!(channels == 1 || channels == 3)) {
+            fprintf(stderr, "ULV invalide: channels=%u (attendu 1 ou 3)\n", channels);
+            close(fd);
             return 1;
         }
 
         size_t frame_size = (size_t)width * (size_t)height * (size_t)channels;
         if (frame_size == 0) {
             fprintf(stderr, "ULV invalide (frame_size=0)\n");
-            munmap(file, file_size);
+            close(fd);
             return 1;
         }
 
@@ -191,7 +214,35 @@ int main(int argc, char* argv[]){
 
         if (initMemoirePartageeEcrivain(flux_sortie, &zoneOut, &infos) != 0) {
             perror("initMemoirePartageeEcrivain");
-            munmap(file, file_size);
+            close(fd);
+            return 1;
+        }
+
+        frame_size = zoneOut.tailleDonnees;
+
+        // Taille pool: assez grosse pour jpgd + frame décodée
+        size_t pool_size = frame_size * 8 + (1024 * 1024);
+
+        if (prepareMemoire(pool_size) != 0) {
+            fprintf(stderr, "prepareMemoire(%zu) a échoué\n", pool_size);
+            close(fd);
+            return 1;
+        }
+
+        struct rlimit lim;
+        lim.rlim_cur = lim.rlim_max = RLIM_INFINITY;
+        if (setrlimit(RLIMIT_MEMLOCK, &lim) != 0) {
+            perror("setrlimit(RLIMIT_MEMLOCK)");
+        }
+        if (mlockall(MCL_CURRENT) != 0) {
+            perror("mlockall(MCL_CURRENT)");
+            // pas fatal
+        }
+
+        uint8_t* file = (uint8_t*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, 0);
+        close(fd);
+        if (file == MAP_FAILED) {
+            perror("mmap");
             return 1;
         }
 
@@ -237,9 +288,14 @@ int main(int argc, char* argv[]){
 
             //decompresser le jpeg en image
             int out_width = 0, out_height = 0, out_color = 0;
-            unsigned char* decoded = decompress_jpeg_image_from_memory(jpegBuffer, (int)jpegSize, &out_width, &out_height, &out_color, (int)c, 0);
+            unsigned char* decoded = jpgd::decompress_jpeg_image_from_memory(jpegBuffer, (int)jpegSize, &out_width, &out_height, &out_color, (int)channels, 0);
 
             if (!decoded) {
+                continue;
+            }
+
+            if ((uint32_t)out_width != width || (uint32_t)out_height != height) {
+                tempsreel_free(decoded);
                 continue;
             }
 
@@ -247,7 +303,7 @@ int main(int argc, char* argv[]){
 
             //ecrivain prend le mutex
             if (attenteEcrivain(&zoneOut) != 0) {
-                free(decoded);
+                tempsreel_free(decoded);
                 continue;
             }
 
@@ -255,7 +311,7 @@ int main(int argc, char* argv[]){
             //signaler terminer decrire.
             signalEcrivain(&zoneOut);
 
-            free(decoded);
+            tempsreel_free(decoded);
 
             if (frame_period_us > 0) {
                 uint64_t t1 = now_us();
@@ -268,6 +324,6 @@ int main(int argc, char* argv[]){
 
         }
 
-
+        
     return 0;
 }

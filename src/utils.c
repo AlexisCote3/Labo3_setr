@@ -530,3 +530,15 @@ int safe_mul_size(size_t a, size_t b, size_t *out)
     *out = a * b;
     return 1;
 }
+
+uint64_t now_us(void) {
+
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    // (secondes -> us) + (ns -> us)
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+}
+
+size_t frame_bytes(const struct videoInfos* vi){
+    return (size_t)vi->largeur * (size_t)vi->hauteur * (size_t)vi->canaux;
+}

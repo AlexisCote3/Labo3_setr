@@ -30,6 +30,7 @@ extern "C" {
 #include <errno.h>
 #include <stdlib.h>
 #include "allocateurMemoire.h"
+#include "commMemoirePartagee.h"
 
 #define ORDONNANCEMENT_NORT 0
 #define ORDONNANCEMENT_RR 1
@@ -150,6 +151,8 @@ void initProfilage(InfosProfilage *dataprof, const char *chemin_enregistrement);
 void evenementProfilage(InfosProfilage *dataprof, unsigned int type);
 
 int safe_mul_size(size_t a, size_t b, size_t *out);
+uint64_t now_us(void);
+size_t frame_bytes(const struct videoInfos* vi);
 
 
 #ifdef __cplusplus
