@@ -8,6 +8,15 @@
  ******************************************************************************/
 
 // Gestion des ressources et permissions
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <errno.h>
+
+#include <unistd.h>   // getopt(), optarg, optind, opterr (souvent)
+#include <getopt.h>   // optarg/optind/opterr (sur certaines plateformes)
+#include <sys/mman.h> // mlockall()
 #include <sys/resource.h>
 
 
@@ -33,7 +42,7 @@ int main(int argc, char* argv[]){
     // Code lisant les options sur la ligne de commande
     char *entree, *sortie;                          // Zones memoires d'entree et de sortie
     struct SchedParams schedParams = {0};           // Paramètres de l'ordonnanceur
-    unsigned int runtime, deadline, period;         // Dans le cas de l'ordonnanceur DEADLINE
+    // unsigned int runtime, deadline, period;         // Dans le cas de l'ordonnanceur DEADLINE
 
     if(argc < 2){
         printf("Nombre d'arguments insuffisant\n");
@@ -109,10 +118,8 @@ int main(int argc, char* argv[]){
     const size_t frame_bytes_out = frame_bytes(&infos_out);
 
     // fois 5 et plus (1024 * 1024) pour etre safe
-    size_t pool_size = 5 * (frame_bytes_in + frame_bytes_out) + (1024 * 1024);
-
-    if (prepareMemoire(pool_size) != 0) {
-        fprintf(stderr, "prepareMemoire a echoue\n");
+    if (prepareMemoire(frame_bytes_in, frame_bytes_out) != 0) {
+        fprintf(stderr, "prepareMemoire(%zu,%zu) a echoue\n", frame_bytes_in, frame_bytes_out);
         return -1;
     }
 

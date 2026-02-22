@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "allocateurMemoire.h"
 #include "commMemoirePartagee.h"
@@ -220,11 +221,8 @@ int main(int argc, char* argv[]){
 
         frame_size = zoneOut.tailleDonnees;
 
-        // Taille pool: assez grosse pour jpgd + frame décodée
-        size_t pool_size = frame_size * 8 + (1024 * 1024);
-
-        if (prepareMemoire(pool_size) != 0) {
-            fprintf(stderr, "prepareMemoire(%zu) a échoué\n", pool_size);
+        if (prepareMemoire(frame_size, frame_size) != 0) {
+            fprintf(stderr, "prepareMemoire(%zu,%zu) a echoue\n", frame_size, frame_size);
             close(fd);
             return 1;
         }

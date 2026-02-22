@@ -272,11 +272,19 @@ int main(int argc, char* argv[])
     }
 
     //memory pool pour ecrire image
-    size_t pool_size = 2*1024*1024;
-    for (int i = 0; i < nbrActifs; i++) pool_size += 6 * bytes[i];
+    // Taille max d'une frame reçue
+    size_t max_frame = 0;
+    for (int i = 0; i < nbrActifs; i++) {
+        if (bytes[i] > max_frame) max_frame = bytes[i];
+    }
 
-    if (prepareMemoire(pool_size) != 0) {
-        fprintf(stderr, "prepareMemoire a echoue\n");
+    size_t bgr_bytes = 427u * 240u * 3u;
+
+    // Taille d'un "gros bloc" nécessaire
+    size_t gros_bloc = (max_frame > bgr_bytes) ? max_frame : bgr_bytes;
+
+    if (prepareMemoire(gros_bloc, gros_bloc) != 0) {
+        fprintf(stderr, "prepareMemoire(%zu,%zu) a echoue\n", gros_bloc, gros_bloc);
         return -1;
     }
 
