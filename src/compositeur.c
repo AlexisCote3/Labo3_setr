@@ -82,99 +82,118 @@ double get_time()
 // Le septième est une structure contenant l'information sur le framebuffer (nommé vinfo dans la fonction main()).
 // Le huitième est la longueur effective d'une ligne du framebuffer (en octets), contenue dans finfo.line_length dans la fonction main().
 // Le neuvième argument est le buffer contenant l'image à afficher, et les trois derniers arguments ses dimensions.
+static int g_currentPage = 0;
+static unsigned char* g_imageGlobale = NULL;
+
+static void presenterMosaque(int fbfd, unsigned char* fb, size_t hauteurFB,
+                    struct fb_var_screeninfo *vinfoPtr, int fbLineLength)
+{
+    if (g_imageGlobale == NULL) {
+        return;
+    }
+
+    g_currentPage = (g_currentPage + 1) % 2;
+    unsigned char *currentFramebuffer = fb + g_currentPage * fbLineLength * hauteurFB;
+
+    memcpy(currentFramebuffer, g_imageGlobale, fbLineLength * hauteurFB);
+
+    vinfoPtr->yoffset = g_currentPage * vinfoPtr->yres;
+    vinfoPtr->activate = FB_ACTIVATE_VBL;
+    if (ioctl(fbfd, FBIOPAN_DISPLAY, vinfoPtr)) {
+        printf("Erreur lors du changement de buffer (double buffering inactif)!\n");
+    }
+}
+
 void ecrireImage(const int position, const int total,
                     int fbfd, unsigned char* fb, size_t largeurFB, size_t hauteurFB, struct fb_var_screeninfo *vinfoPtr, int fbLineLength,
                     const unsigned char *data, size_t hauteurSource, size_t largeurSource, size_t canauxSource){
-    static int currentPage = 0;
-    static unsigned char* imageGlobale = NULL;
-    if(imageGlobale == NULL)
-        imageGlobale = (unsigned char*)calloc(fbLineLength*hauteurFB, 1);
-
-    currentPage = (currentPage+1) % 2;
-    unsigned char *currentFramebuffer = fb + currentPage * fbLineLength * hauteurFB;
-
     if(position >= total){
         return;
     }
 
+    if(g_imageGlobale == NULL) {
+        g_imageGlobale = (unsigned char*)calloc(fbLineLength * hauteurFB, 1);
+    }
+
     const unsigned char *dataTraite = data;
     unsigned char* d = NULL;
+    // Conversion locale grayscale -> BGR pour l'affichage
     if(canauxSource == 1){
-        d = (unsigned char*)tempsreel_malloc(largeurSource*hauteurSource*3);
+        d = (unsigned char*)tempsreel_malloc(largeurSource * hauteurSource * 3);
         unsigned int pos = 0;
-        for(unsigned int i=0; i < hauteurSource; ++i){
-            for(unsigned int j=0; j < largeurSource; ++j){
-                d[pos++] = data[i*largeurSource + j];
-                d[pos++] = data[i*largeurSource + j];
-                d[pos++] = data[i*largeurSource + j];
+        for(unsigned int i = 0; i < hauteurSource; ++i){
+            for(unsigned int j = 0; j < largeurSource; ++j){
+                d[pos++] = data[i * largeurSource + j];
+                d[pos++] = data[i * largeurSource + j];
+                d[pos++] = data[i * largeurSource + j];
             }
         }
         dataTraite = d;
     }
 
-
+    // Une seule image en plein ecran: presentation immediate
     if(total == 1){
-        // Une seule image en plein écran
-        for(unsigned int ligne=0; ligne < hauteurSource; ligne++){
+        g_currentPage = (g_currentPage + 1) % 2;
+        unsigned char *currentFramebuffer = fb + g_currentPage * fbLineLength * hauteurFB;
+        for(unsigned int ligne = 0; ligne < hauteurSource; ligne++){
             memcpy(currentFramebuffer + ligne * fbLineLength, dataTraite + ligne * largeurSource * 3, largeurFB * 3);
         }
+
+        vinfoPtr->yoffset = g_currentPage * vinfoPtr->yres;
+        vinfoPtr->activate = FB_ACTIVATE_VBL;
+        if (ioctl(fbfd, FBIOPAN_DISPLAY, vinfoPtr)) {
+            printf("Erreur lors du changement de buffer (double buffering inactif)!\n");
+        }
     }
+    // Deux images (haut/bas) composees dans g_imageGlobale
     else if(total == 2){
-        // Deux images
+        // Image du haut
         if(position == 0){
-            // Image du haut
-            for(unsigned int ligne=0; ligne < hauteurSource; ligne++){
-                memcpy(imageGlobale + ligne * fbLineLength, dataTraite + ligne * largeurSource * 3, largeurFB * 3);
+            for(unsigned int ligne = 0; ligne < hauteurSource; ligne++){
+                memcpy(g_imageGlobale + ligne * fbLineLength, dataTraite + ligne * largeurSource * 3, largeurSource * 3);
             }
         }
+        // Image du bas
         else{
-            // Image du bas
-            for(unsigned int ligne=hauteurSource; ligne < hauteurSource*2; ligne++){
-                memcpy(imageGlobale + ligne * fbLineLength, dataTraite + (ligne-hauteurSource) * largeurSource * 3, largeurFB * 3);
+            for(unsigned int ligne = hauteurSource; ligne < hauteurSource * 2; ligne++){
+                memcpy(g_imageGlobale + ligne * fbLineLength, dataTraite + (ligne - hauteurSource) * largeurSource * 3, largeurSource * 3);
             }
         }
     }
+    // 3 ou 4 images en grille 2x2
     else if(total == 3 || total == 4){
-        // 3 ou 4 images
         off_t offsetLigne = 0;
         off_t offsetColonne = 0;
         switch (position) {
+                // En haut, a gauche
             case 0:
-                // En haut, à gauche
                 break;
+                // En haut, a droite
             case 1:
-                // En haut, à droite
                 offsetColonne = largeurSource;
                 break;
+                // En bas, a gauche
             case 2:
-                // En bas, à gauche
                 offsetLigne = hauteurSource;
                 break;
+                // En bas, a droite
             case 3:
-                // En bas, à droite
                 offsetLigne = hauteurSource;
                 offsetColonne = largeurSource;
                 break;
         }
-        // On copie les données ligne par ligne
+
+        // Copie ligne par ligne dans la mosaique
         offsetLigne *= fbLineLength;
         offsetColonne *= 3;
-        for(unsigned int ligne=0; ligne < hauteurSource; ligne++){
-            memcpy(imageGlobale + offsetLigne + offsetColonne, dataTraite + ligne * largeurSource * 3, largeurSource * 3);
+        for(unsigned int ligne = 0; ligne < hauteurSource; ligne++){
+            memcpy(g_imageGlobale + offsetLigne + offsetColonne, dataTraite + ligne * largeurSource * 3, largeurSource * 3);
             offsetLigne += fbLineLength;
         }
     }
 
-    if(total > 1)
-        memcpy(currentFramebuffer, imageGlobale, fbLineLength*hauteurFB);
-        
-    if(canauxSource == 1)
+    if(canauxSource == 1) {
         tempsreel_free(d);
-        
-    vinfoPtr->yoffset = currentPage * vinfoPtr->yres;
-    vinfoPtr->activate = FB_ACTIVATE_VBL;
-    if (ioctl(fbfd, FBIOPAN_DISPLAY, vinfoPtr)) {
-        printf("Erreur lors du changement de buffer (double buffering inactif)!\n");
     }
 }
 
@@ -399,6 +418,9 @@ int main(int argc, char* argv[])
     memset(noir, 0, sizeof(noir));
     ecrireImage(0, nbrActifs, fbfd, fbp, vinfo.xres, vinfo.yres, &vinfo, finfo.line_length,
             noir, 240, 427, 3);
+    if (nbrActifs > 1) {
+        presenterMosaque(fbfd, fbp, vinfo.yres, &vinfo, finfo.line_length);
+    }
 
 
     while(1){
@@ -470,6 +492,10 @@ int main(int argc, char* argv[])
 
                     if (periodUs[i] != 0) nextAllowedUs[i] = now + periodUs[i];
                 }
+            }
+
+            if (did_task && nbrActifs > 1) {
+                presenterMosaque(fbfd, fbp, vinfo.yres, &vinfo, finfo.line_length);
             }
 
             // 3) Écriture stats toutes ~5 secondes
