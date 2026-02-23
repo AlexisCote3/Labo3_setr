@@ -111,7 +111,7 @@ void ecrireImage(const int position, const int total,
         return;
     }
 
-    if(g_imageGlobale == NULL) {
+    if(total > 1 && g_imageGlobale == NULL) {
         g_imageGlobale = (unsigned char*)calloc(fbLineLength * hauteurFB, 1);
     }
 
@@ -266,10 +266,6 @@ int main(int argc, char* argv[])
     unsigned int count_frames[4] = {0};
     double maxDeltaMs_frames[4] = {0.0};
 
-    // Limite de presentation globale pour eviter de presenter a la somme des FPS des flux
-    uint64_t periodPresentationUs = 0;
-    uint64_t nextPresentationUs = 0;
-
     for (int i = 0; i < nbrActifs; i++) {
 
         if (initMemoirePartageeLecteur(flux[i], &zone_in[i]) != 0) {
@@ -292,9 +288,6 @@ int main(int argc, char* argv[])
 
         periodUs[i] = (infos[i].fps == 0) ? 0 : (1000000ULL / (uint64_t)infos[i].fps);
         nextAllowedUs[i] = 0;
-        if (periodUs[i] != 0 && (periodPresentationUs == 0 || periodUs[i] < periodPresentationUs)) {
-            periodPresentationUs = periodUs[i];
-        }
     }
 
     //memory pool pour ecrire image
@@ -343,7 +336,6 @@ int main(int argc, char* argv[])
 
     uint64_t startUs = now_us();
     uint64_t lastStatsUs = startUs;
-    nextPresentationUs = startUs;
 
 
 
@@ -503,13 +495,7 @@ int main(int argc, char* argv[])
             }
 
             if (did_task && nbrActifs > 1) {
-                uint64_t nowPresentation = now_us();
-                if (periodPresentationUs == 0 || nowPresentation >= nextPresentationUs) {
-                    presenterMosaque(fbfd, fbp, vinfo.yres, &vinfo, finfo.line_length);
-                    if (periodPresentationUs != 0) {
-                        nextPresentationUs = nowPresentation + periodPresentationUs;
-                    }
-                }
+                presenterMosaque(fbfd, fbp, vinfo.yres, &vinfo, finfo.line_length);
             }
 
             // 3) Écriture stats toutes ~5 secondes
