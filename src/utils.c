@@ -17,22 +17,73 @@
 
 // Applique les paramètres d'ordonnancement au processus courant
 int appliquerOrdonnancement(const struct SchedParams* params, const char* nomProgramme) {
-    // TODO : implémenter cette fonction
-    struct sched_attr attr;
-    memset(&attr, 0, sizeof(attr));
-    attr.size = sizeof(attr);
-    attr.sched_policy = params->modeOrdonnanceur;
-    attr.sched_runtime = params->runtime * 1000000; // Convertir en nanosecondes
-    attr.sched_deadline = params->deadline * 1000000;
-    attr.sched_period = params->period * 1000000;
-    if (sched_setattr(0, &attr, 0) < 0) {
-        printf("Erreur lors de l'application des paramètres d'ordonnancement pour %s \n", nomProgramme);
+    if (params == NULL) {
+        errno = EINVAL;
+        fprintf(stderr, "[%s] Parametres d'ordonnancement invalides (NULL)\n", nomProgramme);
         return -1;
     }
+
+    int policy;
+    switch (params->modeOrdonnanceur) {
+        case ORDONNANCEMENT_NORT: policy = SCHED_OTHER; break;
+        case ORDONNANCEMENT_RR: policy = SCHED_RR; break;
+        case ORDONNANCEMENT_FIFO: policy = SCHED_FIFO; break;
+        case ORDONNANCEMENT_DEADLINE:
+        #ifdef SCHED_DEADLINE
+            policy = SCHED_DEADLINE;
+        #else
+            policy = 6;
+        #endif
+            break;
+        default:
+            errno = EINVAL;
+            fprintf(stderr, "[%s] Mode d'ordonnancement invalide: %d\n", nomProgramme, params->modeOrdonnanceur);
+            return -1;
+    }
+
+    if (policy == 6) {
+        if (params->runtime == 0 || params->deadline == 0 || params->period == 0 ||
+            params->runtime > params->deadline || params->deadline > params->period) {
+            errno = EINVAL;
+            fprintf(stderr, "[%s] Parametres DEADLINE invalides (runtime<=deadline<=period et >0 requis)\n", nomProgramme);
+            return -1;
+        }
+
+        struct sched_attr attr;
+        memset(&attr, 0, sizeof(attr));
+        attr.size = sizeof(attr);
+        attr.sched_policy = policy;
+        attr.sched_runtime = (uint64_t)params->runtime * 1000000ULL;
+        attr.sched_deadline = (uint64_t)params->deadline * 1000000ULL;
+        attr.sched_period = (uint64_t)params->period * 1000000ULL;
+
+        if (sched_setattr(0, &attr, 0) < 0) {
+            fprintf(stderr, "Erreur lors de l'application des parametres d'ordonnancement pour %s\n", nomProgramme);
+            return -1;
+        }
+        return 0;
+    }
+
+    struct sched_param sp;
+    memset(&sp, 0, sizeof(sp));
+
+    if (policy == SCHED_RR || policy == SCHED_FIFO) {
+        int minPrio = sched_get_priority_min(policy);
+        int maxPrio = sched_get_priority_max(policy);
+        if (minPrio < 0 || maxPrio < 0) {
+            fprintf(stderr, "[%s] Impossible d'obtenir l'intervalle de priorites\n", nomProgramme);
+            return -1;
+        }
+        sp.sched_priority = (maxPrio > minPrio) ? (maxPrio - 1) : maxPrio;
+    }
+
+    if (sched_setscheduler(0, policy, &sp) < 0) {
+        fprintf(stderr, "Erreur lors de l'application des parametres d'ordonnancement pour %s\n", nomProgramme);
+        return -1;
+    }
+
     return 0;
-
 }
-
 // Parse l'option -s (type d'ordonnanceur: NORT, RR, FIFO, DEADLINE)
 int parseSchedOption(const char* arg, struct SchedParams* params) {
     if (strcmp(arg, "NORT") == 0) {
@@ -542,3 +593,4 @@ uint64_t now_us(void) {
 size_t frame_bytes(const struct videoInfos* vi){
     return (size_t)vi->largeur * (size_t)vi->hauteur * (size_t)vi->canaux;
 }
+
