@@ -445,21 +445,29 @@ int main(int argc, char* argv[])
 
             evenementProfilage(&profInfos, ETAT_ATTENTE_MUTEXLECTURE);
 
-            //Lire les flux sans bloquer
-            for (int i = 0; i < nbrActifs; i++) {
-
-                //mutex lock si donnee sont prete
-                int ready = attenteLecteurAsync(&zone_in[i]);
-                if (ready == 1) {
-                    memcpy(lastFrame[i], zone_in[i].data, bytes[i]);
-                    pending[i] = 1;
-                    //relacher mutex terminer de lire
-                    signalLecteur(&zone_in[i]);
-
+            //Lire les flux
+            if (nbrActifs == 1) {
+                // En mono-flux, on peut bloquer sans nuire a l'interface
+                if (attenteLecteur(&zone_in[0]) == 0) {
+                    memcpy(lastFrame[0], zone_in[0].data, bytes[0]);
+                    pending[0] = 1;
+                    // relacher mutex terminer de lire
+                    signalLecteur(&zone_in[0]);
+                }
+            } else {
+                // En multi-flux, on ne bloque pas un flux sur les autres
+                for (int i = 0; i < nbrActifs; i++) {
+                    // mutex lock si donnee sont prete
+                    int ready = attenteLecteurAsync(&zone_in[i]);
+                    if (ready == 1) {
+                        memcpy(lastFrame[i], zone_in[i].data, bytes[i]);
+                        pending[i] = 1;
+                        // relacher mutex terminer de lire
+                        signalLecteur(&zone_in[i]);
+                    }
                 }
             }
 
-            
             //afficher et respecter le fps
             for (int i = 0; i < nbrActifs; i++) {
 
@@ -521,6 +529,10 @@ int main(int argc, char* argv[])
             if (!did_task) {
                 evenementProfilage(&profInfos, ETAT_ENPAUSE);
                 usleep(1000); // 1 ms
+            }
+            else {
+                // Cooperative yield: laisse du CPU aux decodeurs en mono-coeur
+                sched_yield();
             }
     }
 
