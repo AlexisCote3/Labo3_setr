@@ -128,7 +128,26 @@ int main(int argc, char* argv[]){
     // les arguments de la ligne de commande (pour la sortie)
     const size_t tailleEntree = (size_t)zoneEntree.header->infos.largeur * (size_t)zoneEntree.header->infos.hauteur * (size_t)zoneEntree.header->infos.canaux;
     const size_t tailleSortie = (size_t)largeurSortie * (size_t)hauteurSortie * (size_t)zoneEntree.header->infos.canaux;
-    if(prepareMemoire(tailleEntree, tailleSortie) != 0){ // Allocation de la mémoire pour les images d'entrée et de sortie
+
+    // Le redimensionnement utilise aussi des grilles (unsigned int/float) potentiellement plus
+    // grosses qu'une image 427x240x3. On dimensionne donc les "gros" blocs pour couvrir le pire cas.
+    size_t nbElementsGrille = 0;
+    size_t tailleElementGrille = (sizeof(unsigned int) > sizeof(float)) ? sizeof(unsigned int) : sizeof(float);
+    if (!safe_mul_size((size_t)largeurSortie, (size_t)hauteurSortie, &nbElementsGrille)) {
+        printf("Dimensions de sortie invalides (overflow)\n");
+        return -1;
+    }
+    size_t tailleGrille = 0;
+    if (!safe_mul_size(nbElementsGrille, tailleElementGrille, &tailleGrille)) {
+        printf("Taille de grille invalide (overflow)\n");
+        return -1;
+    }
+
+    size_t tailleBlocGros = tailleEntree;
+    if (tailleSortie > tailleBlocGros) tailleBlocGros = tailleSortie;
+    if (tailleGrille > tailleBlocGros) tailleBlocGros = tailleGrille;
+
+    if(prepareMemoire(tailleBlocGros, tailleBlocGros) != 0){ // Allocation des blocs incluant images + grilles
         printf("Erreur d'initialisation de l'allocateur memoire\n");
         return -1;
     }
