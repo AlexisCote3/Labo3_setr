@@ -19,7 +19,7 @@ typedef struct BlocLibre {
 
 // Structure d'entete d'un bloc alloue, qui indique de quel pool il provient (petit ou gros)
 typedef struct EnteteBloc {
-    unsigned char typePool; /* 1 = petit, 2 = gros */
+    size_t typePool; /* 1 = petit, 2 = gros (size_t garde un alignement naturel du payload) */
 } EnteteBloc;
 
 // Les pools de mémoire pour les petits et gros blocs, ainsi que les listes de blocs libres pour chaque pool
@@ -61,6 +61,7 @@ int prepareMemoire(size_t tailleImageEntree, size_t tailleImageSortie)
 {
     size_t i; // Variable de boucle pour l'initialisation des blocs
     size_t tailleEntete = sizeof(EnteteBloc); // Taille de l'entete de chaque bloc, qui contient des informations sur le type de pool
+    size_t alignement = sizeof(void*);
     size_t chargePetit = ALLOC_TAILLE_PETIT > sizeof(BlocLibre) ? ALLOC_TAILLE_PETIT : sizeof(BlocLibre); // Charge utile pour les petits blocs, qui doit être au moins suffisante pour contenir un BlocLibre (pour la liste des blocs libres)
     size_t chargeGros = tailleImageEntree > tailleImageSortie ? tailleImageEntree : tailleImageSortie; // Charge utile pour les gros blocs, qui doit être au moins suffisante pour contenir une image d'entrée ou de sortie
     size_t totalPetit; // Taille totale du pool de petits blocs (taille d'un bloc * nombre de blocs)
@@ -75,6 +76,9 @@ int prepareMemoire(size_t tailleImageEntree, size_t tailleImageSortie)
 
     g_tailleBlocPetit = tailleEntete + chargePetit; // Taille totale d'un bloc dans le pool de petits blocs (entete + charge utile)
     g_tailleBlocGros = tailleEntete + chargeGros; // Taille totale d'un bloc dans le pool de gros blocs (entete + charge utile)
+    // Assure que chaque nouveau bloc commence sur un alignement naturel.
+    g_tailleBlocPetit = (g_tailleBlocPetit + alignement - 1) & ~(alignement - 1);
+    g_tailleBlocGros  = (g_tailleBlocGros  + alignement - 1) & ~(alignement - 1);
 
     if (ALLOC_N_PETITS_BLOCS != 0 && g_tailleBlocPetit > ((size_t)-1) / ALLOC_N_PETITS_BLOCS) { // Vérification de débordement pour le calcul de la taille totale du pool de petits blocs
         libererPools();
@@ -169,4 +173,3 @@ void tempsreel_free(void* ptr)
         g_libresGros = bloc;
     }
 }
-
