@@ -111,7 +111,18 @@ int main(int argc, char* argv[]){
     const size_t tailleImage = (size_t)zoneEntree.header->infos.largeur *
                                (size_t)zoneEntree.header->infos.hauteur *
                                (size_t)zoneEntree.header->infos.canaux;
-    if(prepareMemoire(tailleImage, tailleImage) != 0){ // Allocation de la mémoire pour les images d'entrée et de sortie, mêmes tailles pour les deux (on filtre)
+
+    // lowpass/highpass allouent aussi des buffers float temporaires, plus gros que l'image source.
+    size_t nbPixels = 0, nbEchantillons = 0, tailleFloat = 0;
+    if (!safe_mul_size((size_t)zoneEntree.header->infos.largeur, (size_t)zoneEntree.header->infos.hauteur, &nbPixels) ||
+        !safe_mul_size(nbPixels, (size_t)zoneEntree.header->infos.canaux, &nbEchantillons) ||
+        !safe_mul_size(nbEchantillons, sizeof(float), &tailleFloat)) {
+        printf("Dimensions d'image invalides (overflow)\n");
+        return -1;
+    }
+
+    size_t tailleBlocGros = (tailleFloat > tailleImage) ? tailleFloat : tailleImage;
+    if(prepareMemoire(tailleBlocGros, tailleBlocGros) != 0){ // Allocation de la mémoire images + buffers float
         printf("Erreur d'initialisation de l'allocateur memoire\n");
         return -1;
     }
