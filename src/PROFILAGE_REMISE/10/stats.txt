@@ -1,0 +1,4 @@
+[5.0] Entree 1: moy=15.6 fps, max=79.1 ms | Entree 2: moy=15.6 fps, max=79.1 ms | 
+[10.0] Entree 1: moy=15.1 fps, max=75.8 ms | Entree 2: moy=15.1 fps, max=75.8 ms | 
+[15.0] Entree 1: moy=15.2 fps, max=79.5 ms | Entree 2: moy=15.2 fps, max=79.5 ms | 
+[20.1] Entree 1: moy=15.0 fps, max=80.2 ms | Entree 2: moy=15.0 fps, max=80.2 ms | 
