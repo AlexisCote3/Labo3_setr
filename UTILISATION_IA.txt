@@ -1,9 +1,24 @@
 Question 1 : Avez-vous utilisé un ou des outils d'IA pour ce laboratoire, même seulement en partie (oui/non)?
 
+Oui
+
+
 Répondez aux questions suivantes seulement si vous avez répondu "oui" à la question précédente.
 
 Question 2 : Quels modèles (ex., Claude Opus, Gemini Pro, GPT-Codex, etc.)?
 
+GPT-Codex
+
 Question 3 : Pour la réalisation de quelles tâches en particulier? Donnez un exemple de "prompt" utilisé et de résultat.
 
+- Proposer des améliorations aux fonctions développés dans ce repos balisé par des TODO. - L'IA a proposé plusieurs améliorations, 
+notamment dans des situations de concurrences.
+
+- Générer des commentaires afin de décrire le fonctionnement des fonctions implémentés. - Commentaires ensuite insérés dans le code aux 
+endroits appropriés. 
+
+-  Gestion de memoire. - Est-ce que mon code contient des dangers pour la gestion de la mémoire? Si oui proposer des améliorations.
+
 Question 4 : Avez-vous rencontré des problèmes lors de l'utilisation de l'IA (mauvaise compréhension des commandes fournies, résultats erronés, etc.)? Qu'avez-vous fait pour les régler?
+
+Aucun problème
