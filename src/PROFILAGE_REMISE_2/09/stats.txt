@@ -1,0 +1,14 @@
+[5.0] Entree 1: moy=27.3 fps, max=112.7 ms | Entree 2: moy=1.0 fps, max=1202.1 ms | Entree 3: moy=1.2 fps, max=1089.3 ms | Entree 4: moy=1.2 fps, max=1089.3 ms | 
+[10.0] Entree 1: moy=27.1 fps, max=117.8 ms | Entree 2: moy=1.0 fps, max=1426.9 ms | Entree 3: moy=1.0 fps, max=1417.8 ms | Entree 4: moy=1.0 fps, max=1044.8 ms | 
+[15.0] Entree 1: moy=27.3 fps, max=118.1 ms | Entree 2: moy=1.0 fps, max=1934.3 ms | Entree 3: moy=0.8 fps, max=2022.5 ms | Entree 4: moy=1.0 fps, max=1012.3 ms | 
+[20.1] Entree 1: moy=27.1 fps, max=113.2 ms | Entree 2: moy=1.0 fps, max=1640.8 ms | Entree 3: moy=1.0 fps, max=1414.6 ms | Entree 4: moy=1.2 fps, max=2025.3 ms | 
+[25.1] Entree 1: moy=27.8 fps, max=115.8 ms | Entree 2: moy=0.6 fps, max=1580.3 ms | Entree 3: moy=0.8 fps, max=1883.7 ms | Entree 4: moy=0.8 fps, max=2014.3 ms | 
+[30.1] Entree 1: moy=27.1 fps, max=134.6 ms | Entree 2: moy=0.8 fps, max=2045.7 ms | Entree 3: moy=0.6 fps, max=1635.1 ms | Entree 4: moy=0.8 fps, max=1069.8 ms | 
+[35.1] Entree 1: moy=27.4 fps, max=114.1 ms | Entree 2: moy=0.6 fps, max=1738.4 ms | Entree 3: moy=0.8 fps, max=1664.9 ms | Entree 4: moy=1.0 fps, max=2098.2 ms | 
+[40.1] Entree 1: moy=27.2 fps, max=116.5 ms | Entree 2: moy=0.8 fps, max=1577.5 ms | Entree 3: moy=0.8 fps, max=1640.5 ms | Entree 4: moy=0.8 fps, max=2038.7 ms | 
+[45.1] Entree 1: moy=27.2 fps, max=118.5 ms | Entree 2: moy=0.8 fps, max=2102.3 ms | Entree 3: moy=0.8 fps, max=2102.3 ms | Entree 4: moy=0.8 fps, max=1914.2 ms | 
+[50.1] Entree 1: moy=27.5 fps, max=147.5 ms | Entree 2: moy=0.8 fps, max=1123.6 ms | Entree 3: moy=0.8 fps, max=1123.6 ms | Entree 4: moy=0.8 fps, max=1123.6 ms | 
+[55.2] Entree 1: moy=27.5 fps, max=115.7 ms | Entree 2: moy=0.6 fps, max=2662.8 ms | Entree 3: moy=0.6 fps, max=2459.5 ms | Entree 4: moy=1.2 fps, max=2032.9 ms | 
+[60.2] Entree 1: moy=26.8 fps, max=119.8 ms | Entree 2: moy=1.0 fps, max=1420.2 ms | Entree 3: moy=0.8 fps, max=2067.7 ms | Entree 4: moy=0.8 fps, max=2024.3 ms | 
+[65.2] Entree 1: moy=27.6 fps, max=117.7 ms | Entree 2: moy=0.8 fps, max=1566.5 ms | Entree 3: moy=1.0 fps, max=1665.9 ms | Entree 4: moy=0.8 fps, max=1215.3 ms | 
+[70.2] Entree 1: moy=27.0 fps, max=113.8 ms | Entree 2: moy=0.8 fps, max=1860.3 ms | Entree 3: moy=0.6 fps, max=1910.2 ms | Entree 4: moy=1.0 fps, max=1486.4 ms | 

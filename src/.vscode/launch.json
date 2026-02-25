@@ -11,7 +11,7 @@
             "request": "attach",
             "gdbpath": "${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/bin/arm-raspbian-linux-gnueabi-gdb",
             "executable": "./build/decodeur",
-            "target": "inserer_adresse_de_votre_raspberry_pi_ici:4560",
+            "target": "192.168.2.140:4560",
             "remote": true,
             "autorun": [
                 "set sysroot ${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/arm-raspbian-linux-gnueabi/sysroot/"
@@ -26,7 +26,7 @@
             "request": "attach",
             "gdbpath": "${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/bin/arm-raspbian-linux-gnueabi-gdb",
             "executable": "./build/compositeur",
-            "target": "inserer_adresse_de_votre_raspberry_pi_ici:4561",
+            "target": "192.168.2.140:4561",
             "remote": true,
             "autorun": [
                 "set sysroot ${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/arm-raspbian-linux-gnueabi/sysroot/"
@@ -41,7 +41,7 @@
             "request": "attach",
             "gdbpath": "${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/bin/arm-raspbian-linux-gnueabi-gdb",
             "executable": "./build/filtreur",
-            "target": "inserer_adresse_de_votre_raspberry_pi_ici:4562",
+            "target": "192.168.2.140:4562",
             "remote": true,
             "autorun": [
                 "set sysroot ${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/arm-raspbian-linux-gnueabi/sysroot/"
@@ -56,7 +56,7 @@
             "request": "attach",
             "gdbpath": "${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/bin/arm-raspbian-linux-gnueabi-gdb",
             "executable": "./build/redimensionneur",
-            "target": "inserer_adresse_de_votre_raspberry_pi_ici:4563",
+            "target": "192.168.2.140:4563",
             "remote": true,
             "autorun": [
                 "set sysroot ${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/arm-raspbian-linux-gnueabi/sysroot/"
@@ -71,7 +71,7 @@
             "request": "attach",
             "gdbpath": "${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/bin/arm-raspbian-linux-gnueabi-gdb",
             "executable": "./build/convertisseur",
-            "target": "inserer_adresse_de_votre_raspberry_pi_ici:4564",
+            "target": "192.168.2.140:4564",
             "remote": true,
             "autorun": [
                 "set sysroot ${env:HOME}/arm-cross-comp-env/arm-raspbian-linux-gnueabi/arm-raspbian-linux-gnueabi/sysroot/"
